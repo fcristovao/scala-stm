@@ -11,7 +11,7 @@ trait StubRef[A] extends Ref[A] {
 	def relaxedGet(equiv: (A, A) => Boolean)(implicit txn: InTxn): A = throw new AbstractMethodError 
 	
 	//from SinkLike[A]
-	def set(v: A)(implicit txn: InTxn) = throw new AbstractMethodError
+	def set(v: A)(implicit txn: InTxn): Unit = throw new AbstractMethodError
 	def trySet(v: A)(implicit txn: InTxn): Boolean = throw new AbstractMethodError
 	
 	//from RefLike[A]
