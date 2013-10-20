@@ -3,7 +3,7 @@ package scala.concurrent.stm.stubs
 import scala.concurrent.stm._
 import scala.concurrent.stm.Ref._
 
-class StubRef[A] extends Ref[A] {
+trait StubRef[A] extends Ref[A] {
 	
 	//from SourceLike[A]:
 	def get(implicit txn: InTxn): A = throw new AbstractMethodError
