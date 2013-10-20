@@ -2,7 +2,7 @@ package scala.concurrent.stm.stubs
 
 import scala.concurrent.stm._
 
-trait StubInTxnEnd extends InTxnEnd{
+trait StubInTxn extends InTxn{
 	import scala.concurrent.stm.Txn._
 
   // The user-visible versions of these methods are in the Txn object.
