@@ -7,7 +7,7 @@ import java.util.concurrent.TimeUnit
 object StubRef {
 	trait StubView[A] extends Ref.View[A] {
 		//from Sink.View[A]
-		def set(v: A) = throw new AbstractMethodError
+		def set(v: A) : Unit = throw new AbstractMethodError
 		def trySet(v: A): Boolean = throw new AbstractMethodError
 
 		//from Source.View[A]
