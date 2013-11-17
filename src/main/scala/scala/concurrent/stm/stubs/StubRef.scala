@@ -21,8 +21,13 @@ object StubRef {
 		//from Ref.View[A]
 		//def ref: Ref[A] // Make sure that any implementation has at least this
 		def swap(v: A): A = atomic(implicit t => ref.swap(v))
-		def compareAndSet(before: A, after: A): Boolean = atomic(implicit t => (if (before == get) { set(after); true } else false))
-		def compareAndSetIdentity[B <: A with AnyRef](before: B, after: A): Boolean = atomic(implicit t => (if (before eq get) { set(after); true } else false))
+		def compareAndSet(before: A, after: A): Boolean = atomic(implicit t => (if (before == ref.get) { ref.set(after); true } else false))
+		def compareAndSetIdentity[B <: A with AnyRef](before: B, after: A): Boolean =
+			atomic(implicit t =>
+				ref.get match { // the ref could be of AnyVal, to which there is no 'eq'
+					case anyRef: AnyRef => if (anyRef eq before) { ref.set(after); true } else false
+					case _ => false
+				})
 		def transform(f: A => A) = atomic(implicit t => ref.transform(f))
 		def getAndTransform(f: A => A): A = atomic(implicit t => ref.getAndTransform(f))
 		def transformAndGet(f: A => A): A = atomic(implicit t => ref.transformAndGet(f))
@@ -37,7 +42,7 @@ object StubRef {
 trait StubRef[A] extends Ref[A] {
 	//from SourceLike[A]:
 	def get(implicit txn: InTxn): A = throw new AbstractMethodError
-	def getWith[Z](f: (A) => Z)(implicit txn: InTxn): Z = throw new AbstractMethodError
+	def getWith[Z](f: (A) => Z)(implicit txn: InTxn): Z = f(relaxedGet({ f(_) == f(_) }))
 	def relaxedGet(equiv: (A, A) => Boolean)(implicit txn: InTxn): A = throw new AbstractMethodError
 
 	//from SinkLike[A]
@@ -46,8 +51,11 @@ trait StubRef[A] extends Ref[A] {
 
 	//from RefLike[A]
 	def swap(v: A)(implicit txn: InTxn): A = { val oldValue = get; set(v); oldValue }
-	def transform(f: A => A)(implicit txn: InTxn) = throw new AbstractMethodError
-	def transformIfDefined(pf: PartialFunction[A, A])(implicit txn: InTxn): Boolean = throw new AbstractMethodError
+	def transform(f: A => A)(implicit txn: InTxn) = { set(f(get)) }
+	def transformIfDefined(pf: PartialFunction[A, A])(implicit txn: InTxn): Boolean = {
+		val z = get
+		if (pf.isDefinedAt(z)) { set(pf(z)); true } else false
+	}
 
 	//from Ref[A]
 	def single: View[A] = { val currentRef = this; new StubRef.StubView[A]() { override def ref = currentRef } }
