@@ -7,25 +7,30 @@ import java.util.concurrent.TimeUnit
 object StubRef {
 	trait StubView[A] extends Ref.View[A] {
 		//from Sink.View[A]
-		def set(v: A) : Unit = throw new AbstractMethodError
-		def trySet(v: A): Boolean = throw new AbstractMethodError
+		def set(v: A): Unit = atomic(implicit t => ref.set(v))
+		def trySet(v: A): Boolean = atomic(implicit t => ref.trySet(v))
 
 		//from Source.View[A]
-		def get: A = throw new AbstractMethodError
-		def getWith[Z](f: A => Z): Z = throw new AbstractMethodError
-		def relaxedGet(equiv: (A, A) => Boolean): A = throw new AbstractMethodError
-		def await(f: A => Boolean) = throw new AbstractMethodError
-		def tryAwait(timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS)(f: A => Boolean): Boolean = throw new AbstractMethodError
+		def get: A = atomic(implicit t => ref.get)
+		def getWith[Z](f: A => Z): Z = atomic(implicit t => ref.getWith(f))
+		def relaxedGet(equiv: (A, A) => Boolean): A = atomic(implicit t => ref.relaxedGet(equiv))
+		def await(f: A => Boolean) = atomic(implicit t => if (!f(get)) retry)
+		def tryAwait(timeout: Long, unit: TimeUnit = TimeUnit.MILLISECONDS)(f: A => Boolean): Boolean =
+			atomic(implicit t => f(get) || { retryFor(timeout, unit); false })
 
 		//from Ref.View[A]
-		override def ref: Ref[A] = throw new AbstractMethodError
-		def swap(v: A): A = throw new AbstractMethodError
-		def compareAndSet(before: A, after: A): Boolean = throw new AbstractMethodError
-		def compareAndSetIdentity[B <: A with AnyRef](before: B, after: A): Boolean = throw new AbstractMethodError
-		def transform(f: A => A) = throw new AbstractMethodError
-		def getAndTransform(f: A => A): A = throw new AbstractMethodError
-		def transformAndGet(f: A => A): A = throw new AbstractMethodError
-		def transformIfDefined(pf: PartialFunction[A, A]): Boolean = throw new AbstractMethodError
+		//def ref: Ref[A] // Make sure that any implementation has at least this
+		def swap(v: A): A = atomic(implicit t => ref.swap(v))
+		def compareAndSet(before: A, after: A): Boolean = atomic(implicit t => (if (before == get) { set(after); true } else false))
+		def compareAndSetIdentity[B <: A with AnyRef](before: B, after: A): Boolean = atomic(implicit t => (if (before eq get) { set(after); true } else false))
+		def transform(f: A => A) = atomic(implicit t => ref.transform(f))
+		def getAndTransform(f: A => A): A = atomic(implicit t => ref.getAndTransform(f))
+		def transformAndGet(f: A => A): A = atomic(implicit t => ref.transformAndGet(f))
+		def transformIfDefined(pf: PartialFunction[A, A]): Boolean = atomic(implicit t => ref.transformIfDefined(pf))
+
+		// Ref.View that refer to the same memory location should be equal.
+		// override def hashCode: Int = ref.hashCode
+		// override def equals(any: Any): Boolean = ref.equals(any)
 	}
 }
 
@@ -45,5 +50,5 @@ trait StubRef[A] extends Ref[A] {
 	def transformIfDefined(pf: PartialFunction[A, A])(implicit txn: InTxn): Boolean = throw new AbstractMethodError
 
 	//from Ref[A]
-	def single: View[A] = throw new AbstractMethodError
+	def single: View[A] = { val currentRef = this; new StubRef.StubView[A]() { override def ref = currentRef } }
 }
