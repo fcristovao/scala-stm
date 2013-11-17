@@ -45,7 +45,7 @@ trait StubRef[A] extends Ref[A] {
 	def trySet(v: A)(implicit txn: InTxn): Boolean = throw new AbstractMethodError
 
 	//from RefLike[A]
-	def swap(v: A)(implicit txn: InTxn): A = throw new AbstractMethodError
+	def swap(v: A)(implicit txn: InTxn): A = { val oldValue = get; set(v); oldValue }
 	def transform(f: A => A)(implicit txn: InTxn) = throw new AbstractMethodError
 	def transformIfDefined(pf: PartialFunction[A, A])(implicit txn: InTxn): Boolean = throw new AbstractMethodError
 
